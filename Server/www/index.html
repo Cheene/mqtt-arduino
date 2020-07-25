@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+     <link rel="icon" href="./img/favicon.png" type="image/x-icon">
+    <script src="./script/vue.min.js"></script>
+    <script src="./script/index.js"></script>
+    <script src="./script/mqttws31.min.js"></script>
+    <script src="script/mqttClient.js"></script>
+    <title>一个控制小灯的网页</title>
+    <style>
+        *{margin:0;padding:0;}
+        ul{list-style: none;}
+        nav{width: 100%;height:41px;box-shadow: 0px 0px 2px 1px #666;background-color: #008080}
+        nav .nav_left{float: left;margin-top:10px;left: 15px;position: relative;;}
+        nav .nav_right{float: right;margin-top:10px;right: 15px;position: relative;}
+        nav .theme{position:absolute;width: 100px;left: -55px;top:31px;display:none;text-align: center;color:#eee;font-weight: bold;}
+        nav .theme li{height:25px;z-index:100;width:100px;position: relative;border-bottom: 1px solid #ccc;background-color:#008080;padding:5px 2px;cursor: pointer;}
+        #show_conn_wifi{clear:both;position: fixed;width: 80%;padding:10px 10px;margin: 0px 25px;z-index:100;background-color:#FFFFEE;text-align: center;box-shadow: 0 0 0 1920px rgba(0, 0, 0, 0.5); display: none;}
+        #show_conn_wifi ul{width:100%;color:#233;margin: 0 auto;}
+        #show_conn_wifi ul label{width: 85px;display: inline-block;}
+        #show_conn_wifi ul li{margin: 1em auto}
+        #show_conn_wifi ul input{width: 200px;border:1px solid #233;height:35px;font-size:1.5em}
+        #show_conn_wifi ul button{width:100px;height:35px;margin:0 auto;border:none;background-color:cornflowerblue;color:white;font-weight: bold;letter-spacing: 6px;}
+        #app{width:100%;background-color:#fff;height:450px;display: inline-block;overflow: hidden;}
+
+        #light{width:100%;height:45px;position: relative;margin:1em auto;display: inline-block;left: 10px;}
+        #light input{width:300px;height:100%;border:none;outline: none;border-radius:10px;position:absolute;font-weight:bolder;cursor: pointer;}
+        #light input.on{background-color:rgb(137,190,178);color:rgb(0, 0, 0);}
+        #light input.off{background-color:rgb(201,186,131);color:#eee}
+        #light div{float: right;width:180px;height:180px;;border-radius: 50%;font-size:30px;position: relative;right:30px;top:-10px;}
+        #light div img{width: 100%;height:100%}
+        .gray-off { 
+            filter: grayscale(100%);
+        }
+        .gray-offlight { 
+            filter: grayscale(50%);
+            box-shadow: 1px 1px 30px #eee;
+        }
+        .gray-onlight {
+            box-shadow: 1px 1px 30px #008B8B;
+        }
+        
+        #left{width:50%;float:left;margin-top:30px;}
+        #color-select{width:236px;margin:3em 2em;position:relative;left:2px;top:7px;}
+        #color-select img{margin-bottom: -5px;}
+        #color-select map area{cursor: pointer;}
+        #show-hexagon{visibility:hidden;position: relative;width: 21px;height:21px;background-image: url("./img/img_selectedcolor.gif")}
+        input[type="range"]::-webkit-slider-thumb {/*伪类样式*/
+        -webkit-appearance: none;top: -5px;height: 35px;width: 20px;background: none repeat scroll 0 0 #eee;border-radius: 5px;}
+
+        #right{width:40%;position: relative;float:right;}
+        #show-color{position:relative;width: 150px;height:150px;border-radius:50%;box-shadow: 1px 1px 1px 30px #223}
+        
+        footer{font-family: "微软雅黑","幼圆";box-shadow:0px 0px 1px 1px  #ccc;border-top-left-radius: 15px;border-top-right-radius: 15px;position: fixed;width: 100%;bottom: 0;}
+        footer div{width: 45px;height: 45px;border-radius: 50%;background-color:#008080;box-shadow: 0 0 5px 5px #ccc;top:-20px;position:absolute;}
+        footer div svg{position: relative;left:5px;top:5px;}
+        footer p{color:#ccc;margin:0em auto;padding:2em 0 0 0em;text-align:center}
+        /**媒体查询，手机像素自适应*/
+        @media screen and (max-width: 1000px) {
+            #app{margin:0;}
+            #light{height:60px;font-size:1.5em;width:100%;}
+            #light input {font-size:1em;width:200px;}
+            #light div{width:100px;height:100px;}
+
+            #left{top:-10px;}
+            #color-select{left:-22px;top:-56px;width:50px;height:50px;}
+            #right{left:0;top:60px;}
+            #show-color{width: 50px;height:50px;right:-70px;top:20px;;}
+        }
+    </style>
+    <title>Document</title>
+</head>
+<body>
+    
+    <div id="app">
+    <nav>
+        <div class="nav_left" >
+                <svg t="1555850214883" id="wifi_icon" class="icon"  viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1601" xmlns:xlink="http://www.w3.org/1999/xlink" width="30" height="30">
+                    <defs><style type="text/css"></style></defs>
+                    <path style="fill:#FFFFEE" d="M512.2 192 512.2 192c-159.8 0-311.4 59.8-427.8 168.2L64 379.2l19.8 19.6 64.6 64 18.6 18.4 19.2-17.6c89-81.8 204.6-127 325.6-127 121 0 236.8 45.2 325.6 127l19.2 17.6 18.6-18.4 64.6-64 19.8-19.6-20.4-19C823.2 251.8 671.4 192 512.2 192z" p-id="1602"></path>
+                    <path style="fill:#FFFFEE" d="M794.8 512.8c-77.6-70.2-177.8-108.8-282.2-108.8l-0.2 0-0.6 0-17 0-0.2 0.4c-98.4 4-192 42.2-265.2 108.4l-21 19 20.2 20 65.4 64.8 18.2 18 19.2-16.8c50.6-44.4 114.8-69 180.6-69 66.2 0 130.4 24.6 181 69l19.2 16.8 18.2-18 65.4-64.8 20.2-20L794.8 512.8z" p-id="1603"></path>
+                    <path style="fill:#FFFFEE" d="M512.4 832l19.2-19 105.6-104.4 21.2-21-23.2-19c-30.8-22.8-64.8-40-123-40-58 0-89.8 18.8-123 40l-23 19 21.2 21 105.6 104.4L512.4 832z" p-id="1604"></path>
+                  </svg>
+        </div>
+        <div class="nav_right">
+            <svg t="1555851369893" id="theme" class="icon"  viewBox="0 0 1040 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="2080" xmlns:xlink="http://www.w3.org/1999/xlink" width="30" height="29.53"><defs><style type="text/css"></style></defs><path d="M717.056236 383.936299l-51.226708 0c-28.2893 0-51.226708 22.936385-51.226708 51.225685l0 128.062678c0 28.2893 22.937408 51.225685 51.226708 51.225685l51.226708 0c28.2893 0 51.225685-22.936385 51.225685-51.225685L768.281921 435.161984C768.281921 406.872684 745.345536 383.936299 717.056236 383.936299zM717.056236 537.611308c0 14.158465-11.480472 25.612331-25.613354 25.612331-14.132882 0-25.612331-11.453866-25.612331-25.612331l0-76.835969c0-14.158465 11.480472-25.613354 25.612331-25.613354 14.133905 0 25.613354 11.453866 25.613354 25.613354L717.056236 537.611308zM1013.977739 426.580538 859.776751 165.30079c-8.888438-15.063067-22.294772-25.975605-37.57171-32.080649-32.708959-34.856879-79.187527-56.638975-130.762159-56.638975L332.862064 76.581166c-51.575656 0-98.0532 21.782096-130.761136 56.639998-15.276938 6.105045-28.683273 17.017582-37.572734 32.079626L10.327206 426.580538c-21.26021 36.069497-8.655124 82.217537 28.239158 103.028515l115.00836 64.967664 0 199.163015c0 99.024318 80.264045 153.678078 179.287339 153.678078l358.580818 0c99.024318 0 179.290409-80.266092 179.290409-179.290409L870.733291 594.575694l115.00836-64.966641C1022.63184 508.798075 1035.238972 462.650035 1013.977739 426.580538zM153.574724 536.518417l-67.058278-37.875632c-24.589025-13.907755-33.019021-44.647873-18.809391-68.684312l85.86767-145.555074L153.574724 536.518417zM646.620024 127.807874c0 56.5786-60.205197 102.45137-134.467551 102.45137-74.261331 0-134.466528-45.873794-134.466528-102.45137L646.620024 127.807874zM819.507606 742.515071c0 84.893482-68.810179 153.677055-153.678078 153.677055L358.475418 896.192126c-84.8679 0-153.675008-68.783573-153.675008-153.677055l0-461.030142c0-76.150354 55.402821-139.361001 128.093377-151.545508 1.332345 83.883479 81.06734 151.545508 179.258687 151.545508 98.19237 0 177.926342-67.662029 179.25971-151.545508 72.690556 12.183484 128.096447 75.394131 128.096447 151.545508L819.508629 742.515071zM937.791569 498.642784l-67.058278 37.875632 0-252.111948 85.86767 145.552004C970.807521 453.995935 962.377524 484.736053 937.791569 498.642784z" p-id="2081" fill="#ffffff"></path>
+            </svg>
+            <ul class="theme">
+                <li @click="sendModel(1)"  >10s 倒计时</li>
+                <li @click="sendModel(2)">5s 唤醒</li>
+                <li @click="sendModel(3)">颜色变换</li>
+            </ul>
+        </div>
+        <div id="show_conn_wifi">
+            <ul>
+                <li><label>SSID</label><input type="text" value=""></li>
+                <li><label>PASSWD</label><input type="password" value=""></li>
+                <li><button>连接</button>
+            </ul>
+        </div>
+    </nav>
+         <!-- 开关按钮 -->
+         <div id="light">
+                <input  :class="lightSheet" type="button" :value="(light==0)?'关':'开'"  @click="changgeLight">
+                <div>
+                    <img :class="lightGray" src="./img/light.png">
+                </div>
+        </div>
+        <div id="left">         
+            <!-- 显示颜色拾取器 -->
+            <div id="color-select">
+                <img src="./img/img_colormap.png"  usemap="#color-map"/>
+                <map id="color-map" name="color-map">
+                    <area shape="poly" v-for="(val,key) in arrcolor" :coords='val.coords' :alt='val.id' @click="clickColor(val.id,key)"/>
+                </map>
+                <div id="show-hexagon" :style="hexPosition"></div>
+            </div>
+        </div>
+        <div id="right">
+            <!-- 显示选中的颜色 -->
+            <div id="show-color" :style="showColorStyle"></div>
+        </div>
+        <div style="clear:both"></div>
+    </div>
+    <footer>
+        <div id="icon_send">
+                <svg t="1556068909500" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1982" xmlns:xlink="http://www.w3.org/1999/xlink" width="28" height="28"><defs><style type="text/css"></style></defs>
+                    <path d="M964.154514 81.861486a29.242514 29.242514 0 0 0-30.866285-0.380343L60.459886 609.104457a29.257143 29.257143 0 1 0 6.568228 53.013943l273.027657 83.485257 35.766858 177.664a29.2864 29.2864 0 0 0 48.069485 16.135314l141.282743-124.957257 289.9968 88.6784a29.2864 29.2864 0 0 0 37.653943-24.766171L977.495771 109.714286a29.257143 29.257143 0 0 0-13.341257-27.8528zM423.175314 861.930057l-19.499885-96.885028 95.890285 29.330285-76.3904 67.554743z m415.349029-25.088l-363.271314-111.074743 294.107428-345.000228a14.613943 14.613943 0 1 0-22.250057-18.973257L444.781714 716.448914l-298.027885-91.121371 766.083657-463.111314-74.313143 674.625828z" fill="#e6e6e6" p-id="1983"></path>
+                    <path d="M812.2368 580.856686a14.628571 14.628571 0 0 0 16.310857-12.712229l2.720914-21.942857a14.599314 14.599314 0 0 0-12.712228-16.310857 14.584686 14.584686 0 0 0-16.310857 12.712228l-2.720915 21.942858a14.613943 14.613943 0 0 0 12.712229 16.310857zM792.736914 737.221486a14.628571 14.628571 0 0 0 16.559543-12.405029l14.0288-97.879771a14.6432 14.6432 0 0 0-12.419657-16.559543 14.701714 14.701714 0 0 0-16.559543 12.419657l-14.0288 97.879771a14.657829 14.657829 0 0 0 12.419657 16.544915z" fill="#e6e6e6" p-id="1984"></path>
+                </svg>
+        </div>
+        
+            <p>17计升 米传宁</p>
+    </footer>
+</body>
+
+</html>
